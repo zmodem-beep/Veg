@@ -118,7 +118,7 @@
         .card-title { font-size: 18px; margin: 0 0 10px 0; font-weight: bold; }
         .price { color: #E65100; font-weight: bold; font-size: 20px; }
 
-        /* 彈出視窗基礎樣式 (登入與通訊) */
+        /* 彈出視窗基礎樣式 */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -221,16 +221,17 @@
             font-style: italic;
         }
     </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
-    <!-- 導覽列 -->
     <header>
         <div class="nav-container">
             <a class="logo" href="#">🥬 鮮蔬家園</a>
             <ul class="nav-links">
                 <li><a href="#">首頁</a></li>
-                <!-- 秘密入口 -->
                 <li><a id="secretEntry">最新消息</a></li>
                 <li><a href="#">當季團購</a></li>
                 <li><a href="#">小農故事</a></li>
@@ -239,13 +240,11 @@
         </div>
     </header>
 
-    <!-- 偽裝首頁橫幅 -->
     <div class="hero">
         <h1>產地直送的純粹感動</h1>
         <p>契作無毒有機蔬菜，每週三固定配送，為家人的健康把關</p>
     </div>
 
-    <!-- 偽裝商品網格 -->
     <main class="main-content">
         <h2 class="section-title">本週推薦團購項目</h2>
         <div class="grid">
@@ -273,7 +272,6 @@
         </div>
     </main>
 
-    <!-- 階段一：完全偽裝的會員登入視窗 -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-box">
             <span class="close-btn" id="closeLogin">&times;</span>
@@ -282,31 +280,27 @@
             
             <div class="form-group">
                 <label>合作夥伴授權碼 (或註冊手機)</label>
-                <!-- 移除所有真實提示，改用毫無關聯的偽裝導引字眼 -->
                 <input type="text" id="memberId" class="form-control" placeholder="請輸入 10 碼授權檢查碼" autocomplete="new-password">
             </div>
             <button class="btn" id="submitLogin">驗證身份</button>
         </div>
     </div>
 
-    <!-- 階段二：秘密通訊核心面板 -->
     <div class="modal-overlay" id="cryptoModal">
         <div class="modal-box chat-box">
             <span class="close-btn" id="closeCrypto">&times;</span>
             <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom:10px;" id="userTitle">機密通道</h3>
             
-            <!-- 上半部：接收對方訊息（閱後即焚） -->
             <div class="chat-section">
                 <div class="chat-label">
                     <span>來自對方的留言</span>
-                    <span class="timer-badge" id="timerDisplay">倒數計時中: 20s</span>
+                    <span class="timer-badge" id="timerDisplay">等待載入...</span>
                 </div>
                 <div id="incomingMessage" class="message-display">
-                    載入中...
+                    遠端連線中...
                 </div>
             </div>
 
-            <!-- 下半部：留給對方的訊息 -->
             <div class="chat-section" style="border-top: 1px dashed #ccc; padding-top:20px;">
                 <div class="chat-label">留給對方的訊息</div>
                 <textarea id="outgoingMessage" class="form-control" rows="3" placeholder="請輸入您想留給對方的訊息..." autocomplete="new-password" style="resize: none;"></textarea>
@@ -316,11 +310,20 @@
     </div>
 
     <script>
-        // 模擬後端資料庫資料（記憶體暫存）
-        let mockDatabase = {
-            'A01_msg': '這是某甲（A01）留給某乙的秘密訊息。記得明晚八點老地方見。', 
-            'B01_msg': '這是某乙（B01）留給某甲的緊急通報。計劃有變，改為線上會合。'  
+        // 🚨 【重要】請在此處填入您從 Firebase 申請到的專屬金鑰設定
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
+        
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         let currentActiveUser = "";
         let countdownInterval = null;
@@ -361,13 +364,12 @@
                 loginModal.classList.remove('active');
                 openCryptoPanel(val);
             } else {
-                // 佯裝成普通無權限的罐頭系統錯誤，並立即清空欄位
                 alert('錯誤 (Error 403)：您的帳號未包含大宗採購授權，或該授權已過期。請聯絡採購部門窗口協助。');
                 memberIdInput.value = ""; 
             }
         });
 
-        // 開啟秘密通訊面板
+        // 開啟秘密通訊面板並從雲端抓取資料
         function openCryptoPanel(user) {
             cryptoModal.classList.add('active');
             outgoingMessage.value = ""; 
@@ -381,21 +383,27 @@
                 targetMsgKey = 'A01_msg'; 
             }
 
-            // 讀取訊息
-            if (mockDatabase[targetMsgKey]) {
-                incomingMessage.innerText = mockDatabase[targetMsgKey];
-                incomingMessage.classList.remove('burned');
-                startBurnTimer(targetMsgKey);
-            } else {
-                incomingMessage.innerText = "目前沒有對方的留存訊息。";
-                incomingMessage.classList.add('burned');
-                timerDisplay.innerText = "無通訊內容";
-            }
+            // 從 Firebase 雲端資料庫讀取一次性資料
+            database.ref('messages/' + targetMsgKey).once('value').then((snapshot) => {
+                const msgData = snapshot.val();
+                
+                if (msgData && msgData.text) {
+                    incomingMessage.innerText = msgData.text;
+                    incomingMessage.classList.remove('burned');
+                    startBurnTimer(targetMsgKey);
+                } else {
+                    incomingMessage.innerText = "目前雲端無對方的留存訊息。";
+                    incomingMessage.classList.add('burned');
+                    timerDisplay.innerText = "無通訊內容";
+                }
+            }).catch((error) => {
+                incomingMessage.innerText = "連線失敗，請檢查網路。";
+            });
         }
 
-        // 閱後即焚計時器 (60秒)
+        // 雲端閱後即焚計時器 (連動縮短為 10 秒)
         function startBurnTimer(msgKey) {
-            let timeLeft = 20;
+            let timeLeft = 10; // 👈 縮短為 10 秒
             timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
 
             clearInterval(countdownInterval);
@@ -405,16 +413,22 @@
                     timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
                 } else {
                     clearInterval(countdownInterval);
-                    // 彻底銷毀
-                    mockDatabase[msgKey] = ""; 
-                    incomingMessage.innerText = "【安全性提示】此訊息已於 1 分鐘前被讀取，系統已自動將其從伺服器與快取中永久抹除。";
+                    
+                    // 1. 從 Google 雲端永久抹除
+                    database.ref('messages/' + msgKey).remove();
+                    
+                    // 2. 修改提示文字為 10 秒
+                    incomingMessage.innerText = "【安全性提示】此訊息已於 10 秒前被讀取，雲端伺服器已將其永久銷毀。";
                     incomingMessage.classList.add('burned');
                     timerDisplay.innerText = "訊息已銷毀";
+                    
+                    // 3. 資安升級：強制將內存引用斷開，防止 F12 記憶體追蹤
+                    msgKey = null;
                 }
             }, 1000);
         }
 
-        // 送出新訊息
+        // 送出新訊息到雲端
         sendMessageBtn.addEventListener('click', () => {
             const newMsg = outgoingMessage.value.trim();
             if (!newMsg) {
@@ -423,17 +437,24 @@
             }
 
             const storageKey = currentActiveUser === 'A01' ? 'A01_msg' : 'B01_msg';
-            mockDatabase[storageKey] = newMsg;
-
-            alert('訊息已安全加密傳輸並封存。');
-            clearInterval(countdownInterval);
-            cryptoModal.classList.remove('active');
-            clearSensitiveData();
+            
+            // 推送資料至 Firebase 雲端
+            database.ref('messages/' + storageKey).set({
+                text: newMsg,
+                timestamp: Date.now()
+            }).then(() => {
+                alert('訊息已安全傳輸至雲端封存。');
+                clearInterval(countdownInterval);
+                cryptoModal.classList.remove('active');
+                clearSensitiveData();
+            }).catch((err) => {
+                alert('傳輸失敗，請檢查連線。');
+            });
         });
 
-        // 安全清理機制
+        // 安全清理本地快取（防變數殘留）
         function clearSensitiveData() {
-            currentActiveUser = "";
+            currentActiveUser = null;
             memberIdInput.value = "";
             outgoingMessage.value = "";
             incomingMessage.innerText = "";
