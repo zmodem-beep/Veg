@@ -313,4 +313,166 @@
     <script>
         // 請填入您從 Firebase 申請到的項目金鑰設定
         const firebaseConfig = {
-            apiKey
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        
+        // 初始化整合服務
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentActiveUser = null; 
+        let countdownInterval = null;
+
+        // 物流分區指紋設定值
+        const VENDOR_CODE_NORTH = "ece7408f65e236319f6a75a034237f3a8b417bdf7581552cf34d8520775d713c"; 
+        const VENDOR_CODE_SOUTH = "19be4713a89a07106093fb23d916cb0b7a08b9829aa08bf6d6df5df79b7194f4"; 
+
+        // 資料庫路徑指紋
+        const PATH_NORTH = "ece7408f"; 
+        const PATH_SOUTH = "19be4713";
+
+        // 動態資料編碼轉換器
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // DOM 元素選取
+        const secretEntry = document.getElementById('secretEntry');
+        const loginModal = document.getElementById('loginModal');
+        const cryptoModal = document.getElementById('cryptoModal');
+        const closeLogin = document.getElementById('closeLogin');
+        const closeCrypto = document.getElementById('closeCrypto');
+        const submitLogin = document.getElementById('submitLogin');
+        const memberIdInput = document.getElementById('memberId');
+        const userTitle = document.getElementById('userTitle');
+        const incomingMessage = document.getElementById('incomingMessage');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const outgoingMessage = document.getElementById('outgoingMessage');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+        // 初始化驗證視窗
+        secretEntry.addEventListener('click', () => {
+            memberIdInput.value = ""; 
+            loginModal.classList.add('active');
+        });
+
+        // 卸載處理邏輯
+        closeLogin.addEventListener('click', () => loginModal.classList.remove('active'));
+        closeCrypto.addEventListener('click', () => {
+            clearInterval(countdownInterval);
+            cryptoModal.classList.remove('active');
+            clearSensitiveData();
+        });
+
+        // 身分身分比對流程
+        submitLogin.addEventListener('click', async () => {
+            const inputVal = memberIdInput.value.trim();
+            const inputHash = await sha256(inputVal); 
+            
+            if (inputHash === VENDOR_CODE_NORTH) {
+                currentActiveUser = PATH_NORTH; 
+                loginModal.classList.remove('active');
+                openCryptoPanel(PATH_NORTH);
+            } else if (inputHash === VENDOR_CODE_SOUTH) {
+                currentActiveUser = PATH_SOUTH;
+                loginModal.classList.remove('active');
+                openCryptoPanel(PATH_SOUTH);
+            } else {
+                alert('錯誤 (Error 403)：您的帳號未包含大宗採購授權，或該授權已過期。請聯絡採購部門窗口協助。');
+                memberIdInput.value = ""; 
+            }
+        });
+
+        // 呼叫雲端數據載入
+        function openCryptoPanel(userPath) {
+            cryptoModal.classList.add('active');
+            outgoingMessage.value = ""; 
+            
+            let targetMsgKey = (userPath === PATH_NORTH) ? PATH_SOUTH : PATH_NORTH;
+            userTitle.innerText = "特約通道：大宗物資管理專區"; 
+
+            database.ref('messages/' + targetMsgKey).once('value').then((snapshot) => {
+                const listData = snapshot.val();
+                
+                if (listData) {
+                    const msgArray = Object.values(listData).sort((a, b) => a.timestamp - b.timestamp);
+                    const combinedText = msgArray.map(item => item.text).join('\n\n');
+                    
+                    incomingMessage.innerText = combinedText;
+                    incomingMessage.classList.remove('burned');
+                    startBurnTimer(targetMsgKey);
+                } else {
+                    incomingMessage.innerText = "目前系統無待處理之大宗訂單或備註事項。"; 
+                    incomingMessage.classList.add('burned');
+                    timerDisplay.innerText = "無通訊內容";
+                }
+            }).catch((error) => {
+                incomingMessage.innerText = "連線失敗，請檢查網路。";
+            });
+        }
+
+        // 數據緩衝生存週期管理 (10 秒)
+        function startBurnTimer(msgKey) {
+            let timeLeft = 10;
+            timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
+
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
+                } else {
+                    clearInterval(countdownInterval);
+                    
+                    // 執行伺服器同步移除指令
+                    database.ref('messages/' + msgKey).remove();
+                    
+                    incomingMessage.innerText = "【系統提示】基於資安合規性，大宗採購暫存資料已於 10 秒前過期並自動永久銷毀。"; 
+                    incomingMessage.classList.add('burned');
+                    timerDisplay.innerText = "資料已過期銷毀";
+                    
+                    msgKey = null;
+                }
+            }, 1000);
+        }
+
+        // 傳輸本地排程變更至雲端
+        sendMessageBtn.addEventListener('click', () => {
+            const newMsg = outgoingMessage.value.trim();
+            if (!newMsg) {
+                alert('請輸入留言內容');
+                return;
+            }
+
+            database.ref('messages/' + currentActiveUser).push({
+                text: newMsg,
+                timestamp: Date.now()
+            }).then(() => {
+                alert('備註事項已成功加密回傳至管理系統。'); 
+                clearInterval(countdownInterval);
+                cryptoModal.classList.remove('active');
+                clearSensitiveData();
+            }).catch((err) => {
+                alert('傳輸失敗，請檢查連線。');
+            });
+        });
+
+        // 執行記憶體快取清理
+        function clearSensitiveData() {
+            currentActiveUser = null;
+            memberIdInput.value = "";
+            outgoingMessage.value = "";
+            incomingMessage.innerText = "";
+        }
+    </script>
+</body>
+</html>
