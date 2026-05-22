@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鮮蔬家園 - 在地有機優質農產團購網</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #8BC34A;
+            --text-color: #333;
+            --bg-color: #f9f9f9;
+        }
+
+        body {
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* 導覽列偽裝 */
+        header {
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-links li a {
+            text-decoration: none;
+            color: #666;
+            font-weight: 500;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-links li a:hover {
+            color: var(--primary-color);
+        }
+
+        /* 團購首頁偽裝內容 */
+        .hero {
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=1200') no-repeat center/cover;
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .hero h1 { font-size: 36px; margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #388E3C;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .card-img {
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .card-body { padding: 20px; }
+        .card-title { font-size: 18px; margin: 0 0 10px 0; font-weight: bold; }
+        .price { color: #E65100; font-weight: bold; font-size: 20px; }
+
+        /* 彈出視窗基礎樣式 (登入與通訊) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        /* 偽裝登入界面 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #388E3C; }
+
+        /* 通訊面板專屬樣式 */
+        .chat-box {
+            max-width: 600px;
+        }
+        .chat-section {
+            margin-bottom: 25px;
+        }
+        .chat-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .timer-badge {
+            background: #ffebee;
+            color: #c62828;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .message-display {
+            background: #f1f8e9;
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            min-height: 60px;
+            word-break: break-all;
+        }
+        .message-display.burned {
+            background: #ffebee;
+            border-left: 4px solid #ef5350;
+            color: #c62828;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 導覽列 -->
+    <header>
+        <div class="nav-container">
+            <a class="logo" href="#">🥬 鮮蔬家園</a>
+            <ul class="nav-links">
+                <li><a href="#">首頁</a></li>
+                <!-- 秘密入口 -->
+                <li><a id="secretEntry">最新消息</a></li>
+                <li><a href="#">當季團購</a></li>
+                <li><a href="#">小農故事</a></li>
+                <li><a href="#">聯絡我們</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <!-- 偽裝首頁橫幅 -->
+    <div class="hero">
+        <h1>產地直送的純粹感動</h1>
+        <p>契作無毒有機蔬菜，每週三固定配送，為家人的健康把關</p>
+    </div>
+
+    <!-- 偽裝商品網格 -->
+    <main class="main-content">
+        <h2 class="section-title">本週推薦團購項目</h2>
+        <div class="grid">
+            <div class="card">
+                <div class="card-img" style="background-image: url('https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?auto=format&fit=crop&q=80&w=400')"></div>
+                <div class="card-body">
+                    <div class="card-title">有機高山高麗菜 (顆)</div>
+                    <div class="price">$120</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-img" style="background-image: url('https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?auto=format&fit=crop&q=80&w=400')"></div>
+                <div class="card-body">
+                    <div class="card-title">溫室無毒小黃瓜 (600g)</div>
+                    <div class="price">$85</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-img" style="background-image: url('https://images.unsplash.com/photo-1598170845058-32b996a67f2c?auto=format&fit=crop&q=80&w=400')"></div>
+                <div class="card-body">
+                    <div class="card-title">產地嚴選優質胡蘿蔔 (袋)</div>
+                    <div class="price">$60</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 階段一：完全偽裝的會員登入視窗 -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-box">
+            <span class="close-btn" id="closeLogin">&times;</span>
+            <h3 style="margin-top:0; color:var(--primary-color);">特約企業大宗採購登入</h3>
+            <p style="font-size:14px; color:#666;">本專區僅限已簽約之合作企業、餐廳與大宗採購業主進入，非相關合作單位請勿輸入。</p>
+            
+            <div class="form-group">
+                <label>合作夥伴授權碼 (或註冊手機)</label>
+                <!-- 移除所有真實提示，改用毫無關聯的偽裝導引字眼 -->
+                <input type="text" id="memberId" class="form-control" placeholder="請輸入 10 碼授權檢查碼" autocomplete="new-password">
+            </div>
+            <button class="btn" id="submitLogin">驗證身份</button>
+        </div>
+    </div>
+
+    <!-- 階段二：秘密通訊核心面板 -->
+    <div class="modal-overlay" id="cryptoModal">
+        <div class="modal-box chat-box">
+            <span class="close-btn" id="closeCrypto">&times;</span>
+            <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom:10px;" id="userTitle">機密通道</h3>
+            
+            <!-- 上半部：接收對方訊息（閱後即焚） -->
+            <div class="chat-section">
+                <div class="chat-label">
+                    <span>來自對方的留言</span>
+                    <span class="timer-badge" id="timerDisplay">倒數計時中: 60s</span>
+                </div>
+                <div id="incomingMessage" class="message-display">
+                    載入中...
+                </div>
+            </div>
+
+            <!-- 下半部：留給對方的訊息 -->
+            <div class="chat-section" style="border-top: 1px dashed #ccc; padding-top:20px;">
+                <div class="chat-label">留給對方的訊息</div>
+                <textarea id="outgoingMessage" class="form-control" rows="3" placeholder="請輸入您想留給對方的訊息..." autocomplete="new-password" style="resize: none;"></textarea>
+            </div>
+            <button class="btn" id="sendMessageBtn">安全送出並登出</button>
+        </div>
+    </div>
+
+    <script>
+        // 模擬後端資料庫資料（記憶體暫存）
+        let mockDatabase = {
+            'A01_msg': '這是某甲（A01）留給某乙的秘密訊息。記得明晚八點老地方見。', 
+            'B01_msg': '這是某乙（B01）留給某甲的緊急通報。計劃有變，改為線上會合。'  
+        };
+
+        let currentActiveUser = "";
+        let countdownInterval = null;
+
+        // DOM 元素選取
+        const secretEntry = document.getElementById('secretEntry');
+        const loginModal = document.getElementById('loginModal');
+        const cryptoModal = document.getElementById('cryptoModal');
+        const closeLogin = document.getElementById('closeLogin');
+        const closeCrypto = document.getElementById('closeCrypto');
+        const submitLogin = document.getElementById('submitLogin');
+        const memberIdInput = document.getElementById('memberId');
+        const userTitle = document.getElementById('userTitle');
+        const incomingMessage = document.getElementById('incomingMessage');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const outgoingMessage = document.getElementById('outgoingMessage');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+        // 開啟登入視窗
+        secretEntry.addEventListener('click', () => {
+            memberIdInput.value = ""; 
+            loginModal.classList.add('active');
+        });
+
+        // 關閉視窗邏輯
+        closeLogin.addEventListener('click', () => loginModal.classList.remove('active'));
+        closeCrypto.addEventListener('click', () => {
+            clearInterval(countdownInterval);
+            cryptoModal.classList.remove('active');
+            clearSensitiveData();
+        });
+
+        // 驗證登入
+        submitLogin.addEventListener('click', () => {
+            const val = memberIdInput.value.trim();
+            if (val === 'A01' || val === 'B01') {
+                currentActiveUser = val;
+                loginModal.classList.remove('active');
+                openCryptoPanel(val);
+            } else {
+                // 佯裝成普通無權限的罐頭系統錯誤，並立即清空欄位
+                alert('錯誤 (Error 403)：您的帳號未包含大宗採購授權，或該授權已過期。請聯絡採購部門窗口協助。');
+                memberIdInput.value = ""; 
+            }
+        });
+
+        // 開啟秘密通訊面板
+        function openCryptoPanel(user) {
+            cryptoModal.classList.add('active');
+            outgoingMessage.value = ""; 
+            
+            let targetMsgKey = "";
+            if (user === 'A01') {
+                userTitle.innerText = "特約通道：代理人 某甲 (A01)";
+                targetMsgKey = 'B01_msg'; 
+            } else {
+                userTitle.innerText = "特約通道：代理人 某乙 (B01)";
+                targetMsgKey = 'A01_msg'; 
+            }
+
+            // 讀取訊息
+            if (mockDatabase[targetMsgKey]) {
+                incomingMessage.innerText = mockDatabase[targetMsgKey];
+                incomingMessage.classList.remove('burned');
+                startBurnTimer(targetMsgKey);
+            } else {
+                incomingMessage.innerText = "目前沒有對方的留存訊息。";
+                incomingMessage.classList.add('burned');
+                timerDisplay.innerText = "無通訊內容";
+            }
+        }
+
+        // 閱後即焚計時器 (60秒)
+        function startBurnTimer(msgKey) {
+            let timeLeft = 60;
+            timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
+
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
+                } else {
+                    clearInterval(countdownInterval);
+                    // 彻底銷毀
+                    mockDatabase[msgKey] = ""; 
+                    incomingMessage.innerText = "【安全性提示】此訊息已於 1 分鐘前被讀取，系統已自動將其從伺服器與快取中永久抹除。";
+                    incomingMessage.classList.add('burned');
+                    timerDisplay.innerText = "訊息已銷毀";
+                }
+            }, 1000);
+        }
+
+        // 送出新訊息
+        sendMessageBtn.addEventListener('click', () => {
+            const newMsg = outgoingMessage.value.trim();
+            if (!newMsg) {
+                alert('請輸入留言內容');
+                return;
+            }
+
+            const storageKey = currentActiveUser === 'A01' ? 'A01_msg' : 'B01_msg';
+            mockDatabase[storageKey] = newMsg;
+
+            alert('訊息已安全加密傳輸並封存。');
+            clearInterval(countdownInterval);
+            cryptoModal.classList.remove('active');
+            clearSensitiveData();
+        });
+
+        // 安全清理機制
+        function clearSensitiveData() {
+            currentActiveUser = "";
+            memberIdInput.value = "";
+            outgoingMessage.value = "";
+            incomingMessage.innerText = "";
+        }
+    </script>
+</body>
+</html>
