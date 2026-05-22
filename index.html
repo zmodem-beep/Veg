@@ -68,7 +68,7 @@
             color: var(--primary-color);
         }
 
-        /* 團購首頁內容 */
+        /* 團購首頁偽裝內容 */
         .hero {
             background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=1200') no-repeat center/cover;
             height: 350px;
@@ -213,6 +213,7 @@
             border-radius: 0 8px 8px 0;
             min-height: 60px;
             word-break: break-all;
+            white-space: pre-wrap; /* 確保換行能正確顯示 */
         }
         .message-display.burned {
             background: #ffebee;
@@ -232,10 +233,10 @@
             <a class="logo" href="#">🥬 鮮蔬家園</a>
             <ul class="nav-links">
                 <li><a href="#">首頁</a></li>
-                <li><a href="#">最新消息</a></li>
+                <li><a id="secretEntry">最新消息</a></li>
                 <li><a href="#">當季團購</a></li>
                 <li><a href="#">小農故事</a></li>
-                <li><a id="secretEntry">聯絡我們</a></li>
+                <li><a href="#">聯絡我們</a></li>
             </ul>
         </div>
     </header>
@@ -312,13 +313,13 @@
     <script>
         // 🚨 【重要】請在此處填入您從 Firebase 申請到的專屬金鑰設定
         const firebaseConfig = {
-            apiKey: "AIzaSyCMU2S5g2COj8iRF0fUqXOGkrJh61rHwEk",
-            authDomain: "vegt-189cd.firebaseapp.com",
-            databaseURL: "https://vegt-189cd-default-rtdb.firebaseio.com",
-            projectId: "vegt-189cd",
-            storageBucket: "vegt-189cd.firebasestorage.app",
-            messagingSenderId: "330815978249",
-            appId: "1:330815978249:web:206907aea614db6bf171d8"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
         
         // 初始化 Firebase
@@ -377,18 +378,24 @@
             let targetMsgKey = "";
             if (user === 'A01') {
                 userTitle.innerText = "特約通道：代理人 某甲 (A01)";
-                targetMsgKey = 'B01_msg'; 
+                targetMsgKey = 'B01_msg'; // 甲要看乙(B01)的所有留存清單
             } else {
                 userTitle.innerText = "特約通道：代理人 某乙 (B01)";
-                targetMsgKey = 'A01_msg'; 
+                targetMsgKey = 'A01_msg'; // 乙要看甲(A01)的所有留存清單
             }
 
-            // 從 Firebase 雲端資料庫讀取一次性資料
+            // 從 Firebase 讀取該節點下的所有子訊息
             database.ref('messages/' + targetMsgKey).once('value').then((snapshot) => {
-                const msgData = snapshot.val();
+                const listData = snapshot.val();
                 
-                if (msgData && msgData.text) {
-                    incomingMessage.innerText = msgData.text;
+                if (listData) {
+                    // 將物件轉換為陣列，並依照時間戳排序（確保由舊到新顯示）
+                    const msgArray = Object.values(listData).sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    // 把每一則文字抓出來，中間用「空一行 (\n\n)」組合起來
+                    const combinedText = msgArray.map(item => item.text).join('\n\n');
+                    
+                    incomingMessage.innerText = combinedText;
                     incomingMessage.classList.remove('burned');
                     startBurnTimer(targetMsgKey);
                 } else {
@@ -401,9 +408,9 @@
             });
         }
 
-        // 雲端閱後即焚計時器 (連動縮短為 10 秒)
+        // 雲端閱後即焚計時器 (10 秒將整個目錄永久銷毀)
         function startBurnTimer(msgKey) {
-            let timeLeft = 10; // 👈 縮短為 10 秒
+            let timeLeft = 10;
             timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
 
             clearInterval(countdownInterval);
@@ -414,21 +421,21 @@
                 } else {
                     clearInterval(countdownInterval);
                     
-                    // 1. 從 Google 雲端永久抹除
+                    // 1. 從 Google 雲端將該通訊者目錄下的所有訊息一次性徹底清除
                     database.ref('messages/' + msgKey).remove();
                     
-                    // 2. 修改提示文字為 10 秒
+                    // 2. 顯示銷毀提示
                     incomingMessage.innerText = "【安全性提示】此訊息已於 10 秒前被讀取，雲端伺服器已將其永久銷毀。";
                     incomingMessage.classList.add('burned');
                     timerDisplay.innerText = "訊息已銷毀";
                     
-                    // 3. 資安升級：強制將內存引用斷開，防止 F12 記憶體追蹤
+                    // 3. 資安釋放記憶體
                     msgKey = null;
                 }
             }, 1000);
         }
 
-        // 送出新訊息到雲端
+        // 送出新訊息到雲端（升級為 push 列表模式）
         sendMessageBtn.addEventListener('click', () => {
             const newMsg = outgoingMessage.value.trim();
             if (!newMsg) {
@@ -436,10 +443,11 @@
                 return;
             }
 
+            // 甲留言存在 A01_msg 列表給乙看；乙存在 B01_msg 給甲看
             const storageKey = currentActiveUser === 'A01' ? 'A01_msg' : 'B01_msg';
             
-            // 推送資料至 Firebase 雲端
-            database.ref('messages/' + storageKey).set({
+            // 👉 使用 .push() 附加到清單後方，而非覆蓋舊資料，達成累積未讀的效果
+            database.ref('messages/' + storageKey).push({
                 text: newMsg,
                 timestamp: Date.now()
             }).then(() => {
@@ -452,7 +460,7 @@
             });
         });
 
-        // 安全清理本地快取（防變數殘留）
+        // 安全清理本地快取
         function clearSensitiveData() {
             currentActiveUser = null;
             memberIdInput.value = "";
