@@ -20,7 +20,7 @@
             color: var(--text-color);
         }
 
-        /* 導覽列 */
+        /* 導覽列樣式設定 */
         header {
             background-color: white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -68,7 +68,7 @@
             color: var(--primary-color);
         }
 
-        /* 團購首頁內容 */
+        /* 團購首頁產品橫幅 */
         .hero {
             background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=1200') no-repeat center/cover;
             height: 350px;
@@ -155,7 +155,7 @@
             color: #999;
         }
 
-        /* 登入界面 */
+        /* 契作會員登入界面 */
         .form-group {
             margin-bottom: 20px;
         }
@@ -184,7 +184,7 @@
         }
         .btn:hover { background: #388E3C; }
 
-        /* 通訊面板專屬樣式 */
+        /* 物流通訊面板專屬樣式 */
         .chat-box {
             max-width: 600px;
         }
@@ -290,7 +290,7 @@
     <div class="modal-overlay" id="cryptoModal">
         <div class="modal-box chat-box">
             <span class="close-btn" id="closeCrypto">&times;</span>
-            <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom:10px;" id="userTitle">機密通道</h3>
+            <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom:10px;" id="userTitle">系統後端</h3>
             
             <div class="chat-section">
                 <div class="chat-label">
@@ -311,167 +311,6 @@
     </div>
 
     <script>
-        // 🚨 【重要】請在此處填入您從 Firebase 申請到的專屬金鑰設定
+        // 請填入您從 Firebase 申請到的項目金鑰設定
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID-rtdb.firebaseio.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-        
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-
-        let currentActiveUser = ""; 
-        let countdownInterval = null;
-
-        // 🔒 資安保護：只留存不可逆的 SHA-256 雜湊指紋。內文完全沒有 "A01" 或 "B01" 字眼。
-        const HASH_A01 = "ece7408f65e236319f6a75a034237f3a8b417bdf7581552cf34d8520775d713c";
-        const HASH_B01 = "19be4713a89a07106093fb23d916cb0b7a08b9829aa08bf6d6df5df79b7194f4";
-
-        // 利用網頁內建原生 Crypto 工具異步計算 SHA-256
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        // DOM 元素選取
-        const secretEntry = document.getElementById('secretEntry');
-        const loginModal = document.getElementById('loginModal');
-        const cryptoModal = document.getElementById('cryptoModal');
-        const closeLogin = document.getElementById('closeLogin');
-        const closeCrypto = document.getElementById('closeCrypto');
-        const submitLogin = document.getElementById('submitLogin');
-        const memberIdInput = document.getElementById('memberId');
-        const userTitle = document.getElementById('userTitle');
-        const incomingMessage = document.getElementById('incomingMessage');
-        const timerDisplay = document.getElementById('timerDisplay');
-        const outgoingMessage = document.getElementById('outgoingMessage');
-        const sendMessageBtn = document.getElementById('sendMessageBtn');
-
-        // 開啟登入視窗
-        secretEntry.addEventListener('click', () => {
-            memberIdInput.value = ""; 
-            loginModal.classList.add('active');
-        });
-
-        // 關閉視窗邏輯
-        closeLogin.addEventListener('click', () => loginModal.classList.remove('active'));
-        closeCrypto.addEventListener('click', () => {
-            clearInterval(countdownInterval);
-            cryptoModal.classList.remove('active');
-            clearSensitiveData();
-        });
-
-        // 驗證登入 (改為加密指紋比對)
-        submitLogin.addEventListener('click', async () => {
-            const inputVal = memberIdInput.value.trim();
-            const inputHash = await sha256(inputVal); // 當場計算輸入值的指紋
-            
-            if (inputHash === HASH_A01) {
-                currentActiveUser = "A01"; // 僅在記憶體內賦值身分
-                loginModal.classList.remove('active');
-                openCryptoPanel("A01");
-            } else if (inputHash === HASH_B01) {
-                currentActiveUser = "B01";
-                loginModal.classList.remove('active');
-                openCryptoPanel("B01");
-            } else {
-                alert('錯誤 (Error 403)：您的帳號未包含大宗採購授權，或該授權已過期。請聯絡採購部門窗口協助。');
-                memberIdInput.value = ""; 
-            }
-        });
-
-        // 開啟秘密通訊面板並從雲端抓取資料
-        function openCryptoPanel(user) {
-            cryptoModal.classList.add('active');
-            outgoingMessage.value = ""; 
-            
-            let targetMsgKey = (user === 'A01') ? 'B01_msg' : 'A01_msg';
-            userTitle.innerText = "特約通道：大宗物資管理專區"; // 👈 連面板標題也徹底偽裝，不留代碼文字
-
-            // 從 Firebase 讀取該節點下的所有子訊息
-            database.ref('messages/' + targetMsgKey).once('value').then((snapshot) => {
-                const listData = snapshot.val();
-                
-                if (listData) {
-                    const msgArray = Object.values(listData).sort((a, b) => a.timestamp - b.timestamp);
-                    const combinedText = msgArray.map(item => item.text).join('\n\n');
-                    
-                    incomingMessage.innerText = combinedText;
-                    incomingMessage.classList.remove('burned');
-                    startBurnTimer(targetMsgKey);
-                } else {
-                    incomingMessage.innerText = "目前系統無待處理之大宗訂單或備註事項。"; // 👈 沒訊息時的文字也改為契作偽裝
-                    incomingMessage.classList.add('burned');
-                    timerDisplay.innerText = "無通訊內容";
-                }
-            }).catch((error) => {
-                incomingMessage.innerText = "連線失敗，請檢查網路。";
-            });
-        }
-
-        // 雲端閱後即焚計時器 (10 秒)
-        function startBurnTimer(msgKey) {
-            let timeLeft = 10;
-            timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
-
-            clearInterval(countdownInterval);
-            countdownInterval = setInterval(() => {
-                timeLeft--;
-                if (timeLeft > 0) {
-                    timerDisplay.innerText = `剩餘時間: ${timeLeft}秒`;
-                } else {
-                    clearInterval(countdownInterval);
-                    
-                    // 從 Google 雲端永久清除
-                    database.ref('messages/' + msgKey).remove();
-                    
-                    incomingMessage.innerText = "【系統提示】基於資安合規性，大宗採購暫存資料已於 10 秒前過期並自動永久銷毀。"; // 👈 偽裝銷毀文字
-                    incomingMessage.classList.add('burned');
-                    timerDisplay.innerText = "資料已過期銷毀";
-                    
-                    msgKey = null;
-                }
-            }, 1000);
-        }
-
-        // 送出新訊息到雲端
-        sendMessageBtn.addEventListener('click', () => {
-            const newMsg = outgoingMessage.value.trim();
-            if (!newMsg) {
-                alert('請輸入留言內容');
-                return;
-            }
-
-            const storageKey = (currentActiveUser === 'A01') ? 'A01_msg' : 'B01_msg';
-            
-            database.ref('messages/' + storageKey).push({
-                text: newMsg,
-                timestamp: Date.now()
-            }).then(() => {
-                alert('備註事項已成功加密回傳至管理系統。'); // 👈 偽裝送出文字
-                clearInterval(countdownInterval);
-                cryptoModal.classList.remove('active');
-                clearSensitiveData();
-            }).catch((err) => {
-                alert('傳輸失敗，請檢查連線。');
-            });
-        });
-
-        // 安全清理本地快取
-        function clearSensitiveData() {
-            currentActiveUser = null;
-            memberIdInput.value = "";
-            outgoingMessage.value = "";
-            incomingMessage.innerText = "";
-        }
-    </script>
-</body>
-</html>
+            apiKey
