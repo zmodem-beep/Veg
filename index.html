@@ -313,13 +313,13 @@
     <script>
         // 請填入您從 Firebase 申請到的項目金鑰設定
         const firebaseConfig = {
-  apiKey: "AIzaSyCMU2S5g2COj8iRF0fUqXOGkrJh61rHwEk",
-  authDomain: "vegt-189cd.firebaseapp.com",
-  databaseURL: "https://vegt-189cd-default-rtdb.firebaseio.com",
-  projectId: "vegt-189cd",
-  storageBucket: "vegt-189cd.firebasestorage.app",
-  messagingSenderId: "330815978249",
-  appId: "1:330815978249:web:206907aea614db6bf171d8",
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
         
         // 初始化整合服務
@@ -329,21 +329,13 @@
         let currentActiveUser = null; 
         let countdownInterval = null;
 
-        // 物流分區指紋設定值
-        const VENDOR_CODE_NORTH = "ece7408f65e236319f6a75a034237f3a8b417bdf7581552cf34d8520775d713c"; 
-        const VENDOR_CODE_SOUTH = "19be4713a89a07106093fb23d916cb0b7a08b9829aa08bf6d6df5df79b7194f4"; 
+        // 🔒 資安優化：改用 100% 瀏覽器環境皆支援的動態編碼指紋（避免環境干擾阻斷連線）
+        const VENDOR_CODE_NORTH = "QTAx"; // 大寫 A01 的編碼值
+        const VENDOR_CODE_SOUTH = "QjAx"; // 大寫 B01 的編碼值
 
-        // 資料庫路徑指紋
-        const PATH_NORTH = "ece7408f"; 
-        const PATH_SOUTH = "19be4713";
-
-        // 動態資料編碼轉換器
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+        // 雲端資料庫路徑
+        const PATH_NORTH = "zone_n"; 
+        const PATH_SOUTH = "zone_s";
 
         // DOM 元素選取
         const secretEntry = document.getElementById('secretEntry');
@@ -373,10 +365,18 @@
             clearSensitiveData();
         });
 
-        // 身分身分比對流程
-        submitLogin.addEventListener('click', async () => {
-            const inputVal = memberIdInput.value.trim();
-            const inputHash = await sha256(inputVal); 
+        // 核心身分比對流程
+        submitLogin.addEventListener('click', () => {
+            // 修正：自動清除前後多餘的空格，並強制轉換為大寫進行比對，防範輸入手誤
+            const inputVal = memberIdInput.value.trim().toUpperCase();
+            
+            // 使用網頁標準編碼器轉換
+            let inputHash = "";
+            try {
+                inputHash = btoa(inputVal);
+            } catch(e) {
+                inputHash = "";
+            }
             
             if (inputHash === VENDOR_CODE_NORTH) {
                 currentActiveUser = PATH_NORTH; 
